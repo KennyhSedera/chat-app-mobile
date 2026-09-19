@@ -1,50 +1,219 @@
-# Welcome to your Expo app 👋
+# 📱 Chat App — Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Application mobile de messagerie temps réel développée avec **React Native et Expo**.
 
-## Get started
+L'application permet aux utilisateurs de discuter dans différents salons avec une synchronisation instantanée des messages.
 
-1. Install dependencies
+## ✨ Fonctionnalités
 
-   ```bash
-   npm install
-   ```
+* 💬 Messagerie temps réel
+* 🏠 Salons de discussion
+* 📩 Envoi et réception instantanés
+* 📜 Historique des conversations
+* 👁️ Messages lus
+* ⌨️ Indicateur de saisie
+* ✏️ Modification des messages
+* 👍 Réactions
+* 🔄 Reconnexion automatique
+* 🔐 Authentification
+* 👤 Gestion du profil
+* 📱 Interface mobile responsive
 
-2. Start the app
+## 🛠️ Technologies
 
-   ```bash
-   npx expo start
-   ```
+* React Native
+* Expo
+* Expo Router
+* TypeScript
+* Socket.IO Client
+* React Context API
 
-In the output, you'll find options to open the app in a
+## 📂 Structure
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```text
+mobile/
+├── app/
+│   ├── (auth)/
+│   ├── (tabs)/
+│   ├── app/
+│   └── _layout.tsx
+│
+├── components/
+│   ├── Chat/
+│   ├── Message/
+│   ├── Room/
+│   └── ...
+│
+├── context/
+│   ├── AuthContext.tsx
+│   ├── ChatContext.tsx
+│   └── ...
+│
+├── hooks/
+│   └── ...
+│
+├── services/
+│   └── socket.ts
+│
+├── constants/
+│   └── ...
+│
+├── assets/
+│   └── ...
+│
+├── app.json
+├── package.json
+└── README.md
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 🚀 Installation
 
-## Learn more
+```bash
+git clone <URL_DU_REPOSITORY>
+cd mobile
+npm install
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## ⚙️ Configuration
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Configurer l'adresse du backend dans les variables ou constantes de l'application.
 
-## Join the community
+Exemple :
 
-Join our community of developers creating universal apps.
+```env
+EXPO_PUBLIC_API_URL=http://localhost:3001
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+> Pour un appareil physique, `localhost` doit généralement être remplacé par l'adresse IP locale de la machine exécutant le backend.
+
+## ▶️ Lancer l'application
+
+```bash
+npm start
+```
+
+### Android
+
+```bash
+npm run android
+```
+
+ou :
+
+```bash
+npx expo run:android
+```
+
+### iOS
+
+```bash
+npm run ios
+```
+
+## 💬 Chat temps réel
+
+La communication avec le backend utilise Socket.IO.
+
+```text
+Mobile
+   │
+   │ Socket.IO
+   ▼
+Backend
+   │
+   │ Socket.IO
+   ▼
+Web / autres mobiles
+```
+
+Lorsqu'un utilisateur reçoit un nouveau message, l'interface est mise à jour immédiatement.
+
+## 🔌 Événements
+
+Le client écoute notamment :
+
+```text
+previousRoomMessages
+newRoomMessage
+roomRead
+messageEdited
+reactions
+typing
+```
+
+### `previousRoomMessages`
+
+Charge les messages précédents d'un salon.
+
+### `newRoomMessage`
+
+Reçoit un nouveau message en temps réel.
+
+### `roomRead`
+
+Met à jour les informations de lecture.
+
+### `messageEdited`
+
+Synchronise les messages modifiés.
+
+### `reactions`
+
+Synchronise les réactions.
+
+### `typing`
+
+Affiche l'indicateur de saisie.
+
+## 🔄 Reconnexion
+
+Le client Socket.IO est configuré pour tenter automatiquement de se reconnecter lorsque la connexion est interrompue.
+
+Cette fonctionnalité permet de conserver une expérience fluide lorsque le réseau devient momentanément indisponible.
+
+## 🎨 Interface
+
+L'application utilise une interface adaptée aux appareils mobiles avec notamment :
+
+* liste des conversations
+* liste des messages
+* champ de saisie
+* réactions
+* indicateurs de lecture
+* indicateur de saisie
+
+## 🔐 Authentification
+
+L'application communique avec le backend pour gérer la session utilisateur.
+
+La session repose sur un cookie sécurisé fourni par le serveur.
+
+## 🧪 Développement
+
+```bash
+npm run lint
+```
+
+Démarrer Expo :
+
+```bash
+npm start
+```
+
+## 📦 Build
+
+Pour un build Android via Expo/EAS :
+
+```bash
+eas build --platform android
+```
+
+## 📄 Licence
+
+Projet développé dans le cadre d'une application de messagerie temps réel.
+
+---
+
+### Stack
+
+**React Native · Expo · Expo Router · TypeScript · Socket.IO Client**
