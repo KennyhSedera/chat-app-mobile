@@ -3,25 +3,34 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { StatusBar } from "expo-status-bar";
+import React from "react";
 import {
+  ActivityIndicator,
   Platform,
   StyleSheet,
-  View,
-  ActivityIndicator,
   Text,
+  View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import React from "react";
 
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import ChatScreen from "./screens/ChatScreen";
-import HomeScreen from "./screens/HomeScreen";
-import ProfileScreen from "./screens/ProfileScreen";
-import LoginScreen from "./screens/LoginScreen";
+import { ChatProvider, useChat } from "./contexts/ChatContext";
+import {
+  NotificationProvider,
+  useNotifications,
+} from "./contexts/NotificationContext";
+import { useAppColors } from "./hooks/colors";
+import { navigationRef } from "./navigation/navigationRef";
 import ChatsScreen from "./screens/ChatsScreen";
+import HomeScreen from "./screens/HomeScreen";
+import LoginScreen from "./screens/LoginScreen";
+import NotificationsScreen from "./screens/NotificationsScreen";
 import PrivateChatScreen from "./screens/PrivateChatScreen";
+import ProfileScreen from "./screens/ProfileScreen";
+import RoomChatScreen from "./screens/RoomChatScreen";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -54,34 +63,71 @@ function LoadingScreen() {
 
 // Navigation principale avec tabs
 function MainTabs() {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? "light"];
-
+  const { colors: theme } = useAppColors();
+  const { unreadChatsCount } = useChat();
+  const { unreadCount } = useNotifications();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
+        tabBarIcon: ({ focused, color }) => {
+          let iconName = "";
 
           if (route.name === "Home") {
             iconName = focused ? "home" : "home-outline";
           } else if (route.name === "Chat") {
             iconName = focused ? "chatbubbles" : "chatbubbles-outline";
           } else if (route.name === "Profile") {
-            iconName = focused ? "person" : "person-outline";
+            iconName = focused ? "person-circle" : "person-circle-outline";
+          } else if (route.name === "Notifications") {
+            iconName = focused ? "notifications" : "notifications-outline";
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return (
+            <Ionicons name={iconName} size={focused ? 30 : 25} color={color} />
+          );
         },
+        tabBarShowLabel: true,
         tabBarActiveTintColor: theme.tint,
         tabBarInactiveTintColor: theme.tabIconDefault,
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: theme.background,
-          borderTopWidth: 1,
-          borderTopColor: theme.tabBarBorder,
-          paddingBottom: Platform.OS === "ios" ? 20 : 10,
-          height: Platform.OS === "ios" ? 90 : 70,
+          position: "absolute",
+          left: 15,
+          right: 15,
+          bottom: 4,
+          height: 58,
+          backgroundColor: theme.card,
+          shadowColor: theme.textSecondary,
+          borderRadius: 30,
+          marginHorizontal: 10,
+          borderTopWidth: 0,
+          borderWidth: 0,
+          shadowOffset: {
+            width: 0,
+            height: 2,
+          },
+          shadowOpacity: 0.12,
+          shadowRadius: 2,
+          elevation: 0.5,
+          paddingTop: 5,
+          paddingBottom: Platform.OS === "ios" ? 5 : 3,
+          overflow: "visible",
+        },
+        tabBarItemStyle: {
+          borderRadius: 30,
+          paddingVertical: 2,
+        },
+        tabBarLabelStyle: {
+          fontSize: 9,
+          fontWeight: "500",
+          marginTop: 1,
+        },
+        tabBarBadgeStyle: {
+          fontSize: 9,
+          minWidth: 16,
+          height: 16,
+          lineHeight: 16,
+          borderRadius: 8,
         },
       })}
     >
@@ -90,15 +136,28 @@ function MainTabs() {
         component={HomeScreen}
         options={{
           tabBarLabel: "Accueil",
+          tabBarBadge: "25+",
         }}
       />
+
       <Tab.Screen
         name="Chat"
         component={ChatsScreen}
         options={{
-          tabBarLabel: "Chat",
+          tabBarLabel: "Discussions",
+          tabBarBadge: unreadChatsCount > 0 ? unreadChatsCount : undefined,
         }}
       />
+
+      <Tab.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{
+          tabBarLabel: "Notifications",
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+        }}
+      />
+
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
@@ -139,6 +198,13 @@ function AppStack() {
         name="PrivateChat"
         component={PrivateChatScreen}
         options={{
+          animationTypeForReplace: "pop",
+        }}
+      />
+      <Stack.Screen
+        name="RoomChat"
+        component={RoomChatScreen}
+        options={{
           animationTypeForReplace: "push",
         }}
       />
@@ -167,7 +233,7 @@ function AppContent() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <SafeAreaView
           style={[
             styles.container,
@@ -185,9 +251,16 @@ function AppContent() {
 // App principal avec AuthProvider
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <NotificationProvider>
+          <StatusBar style="dark" translucent />
+          <ChatProvider>
+            <AppContent />
+          </ChatProvider>
+        </NotificationProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

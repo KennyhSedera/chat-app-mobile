@@ -1,27 +1,26 @@
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { KeyboardAwareView, useKeyboard } from '@/hooks/useKeyboard';
-import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import ChatService from "@/app/services/ChatService";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
+import { KeyboardAwareView, useKeyboard } from "@/hooks/useKeyboard";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
-  RefreshControl
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import ChatService from '@/app/services/ChatService';
-
-const SERVER_URL = 'http://192.168.88.43:3000';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { SERVER_URL } from "../services/AuthService";
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState([]);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -33,7 +32,7 @@ export default function ChatScreen() {
   const { isKeyboardVisible } = useKeyboard();
   const flatListRef = useRef(null);
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
+  const theme = Colors[colorScheme ?? "light"];
   const typingTimeoutRef = useRef(null);
   const currentPage = useRef(1);
 
@@ -54,7 +53,7 @@ export default function ChatScreen() {
 
       const isServerHealthy = await ChatService.checkServerHealth();
       if (!isServerHealthy) {
-        throw new Error('Serveur indisponible');
+        throw new Error("Serveur indisponible");
       }
 
       await ChatService.initialize(SERVER_URL);
@@ -62,64 +61,68 @@ export default function ChatScreen() {
 
       setupSocketListeners();
 
-      ChatService.joinRoom('general');
+      ChatService.joinRoom("general");
 
       await loadMessages();
 
       await loadOnlineUsers();
-
     } catch (error) {
-      console.error('Erreur d\'initialisation:', error);
+      console.error("Erreur d'initialisation:", error);
       setIsLoading(false);
       Alert.alert(
-        'Erreur de connexion',
-        'Impossible de se connecter au serveur. Vérifiez votre connexion internet.',
+        "Erreur de connexion",
+        "Impossible de se connecter au serveur. Vérifiez votre connexion internet.",
         [
-          { text: 'Réessayer', onPress: initializeChat },
-          { text: 'Annuler', style: 'cancel' }
-        ]
+          { text: "Réessayer", onPress: initializeChat },
+          { text: "Annuler", style: "cancel" },
+        ],
       );
     }
   };
 
   const setupSocketListeners = () => {
     // Message reçu
-    ChatService.on('message', (newMessage) => {
-      setMessages(prevMessages => [newMessage, ...prevMessages]);
+    ChatService.on("message", (newMessage) => {
+      setMessages((prevMessages) => [newMessage, ...prevMessages]);
       scrollToBottom();
     });
 
     // Utilisateur en train de taper
-    ChatService.on('userTyping', (data) => {
-      setTypingUsers(prevTyping => {
+    ChatService.on("userTyping", (data) => {
+      setTypingUsers((prevTyping) => {
         if (data.isTyping) {
-          return [...prevTyping.filter(user => user._id !== data.user._id), data.user];
+          return [
+            ...prevTyping.filter((user) => user._id !== data.user._id),
+            data.user,
+          ];
         } else {
-          return prevTyping.filter(user => user._id !== data.user._id);
+          return prevTyping.filter((user) => user._id !== data.user._id);
         }
       });
     });
 
     // Utilisateur rejoint/quitte
-    ChatService.on('userJoined', (user) => {
-      setOnlineUsers(prevUsers => [...prevUsers, user]);
+    ChatService.on("userJoined", (user) => {
+      setOnlineUsers((prevUsers) => [...prevUsers, user]);
     });
 
-    ChatService.on('userLeft', (userId) => {
-      setOnlineUsers(prevUsers => prevUsers.filter(user => user._id !== userId));
+    ChatService.on("userLeft", (userId) => {
+      setOnlineUsers((prevUsers) =>
+        prevUsers.filter((user) => user._id !== userId),
+      );
     });
 
     // Événements de connexion
-    ChatService.on('connect', () => {
+    ChatService.on("connect", () => {
       setIsConnected(true);
     });
 
-    ChatService.on('disconnect', () => {
+    ChatService.on("disconnect", () => {
       setIsConnected(false);
     });
 
-    ChatService.on('connect_error', (error) => {
-      console.error('Erreur de connexion socket:', error);
+    ChatService.on("connect_error", (error) => {
+      console.error("Erreur de connexion socket:", error);
       setIsConnected(false);
     });
   };
@@ -132,11 +135,14 @@ export default function ChatScreen() {
         setIsLoadingMore(true);
       }
 
-      const response = await ChatService.getMessages('general', page, 20);
+      const response = await ChatService.getMessages("general", page, 20);
 
       if (response && response.messages) {
         if (append) {
-          setMessages(prevMessages => [...prevMessages, ...response.messages]);
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            ...response.messages,
+          ]);
         } else {
           setMessages(response.messages);
         }
@@ -145,7 +151,7 @@ export default function ChatScreen() {
         currentPage.current = page;
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des messages:', error);
+      console.error("Erreur lors du chargement des messages:", error);
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
@@ -158,7 +164,7 @@ export default function ChatScreen() {
       const users = await ChatService.getOnlineUsers();
       setOnlineUsers(users || []);
     } catch (error) {
-      console.error('Erreur lors du chargement des utilisateurs:', error);
+      console.error("Erreur lors du chargement des utilisateurs:", error);
     }
   };
 
@@ -167,7 +173,7 @@ export default function ChatScreen() {
 
     try {
       ChatService.sendMessage(message);
-      setMessage('');
+      setMessage("");
 
       // Arrêter l'indicateur de frappe
       ChatService.setTyping(false);
@@ -175,28 +181,31 @@ export default function ChatScreen() {
         clearTimeout(typingTimeoutRef.current);
       }
     } catch (error) {
-      console.error('Erreur lors de l\'envoi:', error);
-      Alert.alert('Erreur', 'Impossible d\'envoyer le message');
+      console.error("Erreur lors de l'envoi:", error);
+      Alert.alert("Erreur", "Impossible d'envoyer le message");
     }
   }, [message, isConnected]);
 
-  const handleMessageChange = useCallback((text) => {
-    setMessage(text);
+  const handleMessageChange = useCallback(
+    (text) => {
+      setMessage(text);
 
-    if (!isConnected) return;
+      if (!isConnected) return;
 
-    // Indiquer que l'utilisateur tape
-    ChatService.setTyping(true);
+      // Indiquer que l'utilisateur tape
+      ChatService.setTyping(true);
 
-    // Arrêter l'indicateur après 3 secondes d'inactivité
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
+      // Arrêter l'indicateur après 3 secondes d'inactivité
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
 
-    typingTimeoutRef.current = setTimeout(() => {
-      ChatService.setTyping(false);
-    }, 3000);
-  }, [isConnected]);
+      typingTimeoutRef.current = setTimeout(() => {
+        ChatService.setTyping(false);
+      }, 3000);
+    },
+    [isConnected],
+  );
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
@@ -219,9 +228,9 @@ export default function ChatScreen() {
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit'
+    return date.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -229,25 +238,31 @@ export default function ChatScreen() {
     const isOwnMessage = item.user._id === ChatService.getCurrentUser()?._id;
 
     return (
-      <View style={[
-        styles.messageContainer,
-        isOwnMessage ? styles.ownMessage : styles.otherMessage
-      ]}>
+      <View
+        style={[
+          styles.messageContainer,
+          isOwnMessage ? styles.ownMessage : styles.otherMessage,
+        ]}
+      >
         {!isOwnMessage && (
           <Text style={[styles.userName, { color: theme.text }]}>
             {item.user.name}
           </Text>
         )}
-        <View style={[
-          styles.messageBubble,
-          {
-            backgroundColor: isOwnMessage ? theme.tint : theme.tabIconDefault,
-          }
-        ]}>
-          <Text style={[
-            styles.messageText,
-            { color: isOwnMessage ? '#fff' : theme.text }
-          ]}>
+        <View
+          style={[
+            styles.messageBubble,
+            {
+              backgroundColor: isOwnMessage ? theme.tint : theme.tabIconDefault,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.messageText,
+              { color: isOwnMessage ? "#fff" : theme.text },
+            ]}
+          >
             {item.text}
           </Text>
         </View>
@@ -264,8 +279,10 @@ export default function ChatScreen() {
     return (
       <View style={styles.typingContainer}>
         <Text style={[styles.typingText, { color: theme.tabIconDefault }]}>
-          {typingUsers.map(user => user.name).join(', ')}
-          {typingUsers.length === 1 ? ' est en train d\'écrire...' : ' sont en train d\'écrire...'}
+          {typingUsers.map((user) => user.name).join(", ")}
+          {typingUsers.length === 1
+            ? " est en train d'écrire..."
+            : " sont en train d'écrire..."}
         </Text>
       </View>
     );
@@ -275,12 +292,14 @@ export default function ChatScreen() {
     <View style={[styles.header, { backgroundColor: theme.background }]}>
       <View style={styles.headerContent}>
         <View style={styles.connectionStatus}>
-          <View style={[
-            styles.statusDot,
-            { backgroundColor: isConnected ? '#34C759' : '#FF3B30' }
-          ]} />
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: isConnected ? "#34C759" : "#FF3B30" },
+            ]}
+          />
           <Text style={[styles.statusText, { color: theme.text }]}>
-            {isConnected ? 'Connecté' : 'Déconnecté'}
+            {isConnected ? "Connecté" : "Déconnecté"}
           </Text>
         </View>
         <Text style={[styles.onlineCount, { color: theme.tabIconDefault }]}>
@@ -292,7 +311,9 @@ export default function ChatScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+      >
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.tint} />
           <Text style={[styles.loadingText, { color: theme.text }]}>
@@ -304,7 +325,9 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       {renderHeader()}
 
       <KeyboardAwareView style={styles.chatContainer}>
@@ -338,15 +361,17 @@ export default function ChatScreen() {
 
         {renderTypingIndicator()}
 
-        <View style={[styles.inputContainer, { backgroundColor: theme.background }]}>
+        <View
+          style={[styles.inputContainer, { backgroundColor: theme.background }]}
+        >
           <TextInput
             style={[
               styles.textInput,
               {
-                backgroundColor: theme.tabIconDefault + '20',
+                backgroundColor: theme.tabIconDefault + "20",
                 color: theme.text,
-                borderColor: theme.tabIconDefault + '40',
-              }
+                borderColor: theme.tabIconDefault + "40",
+              },
             ]}
             value={message}
             onChangeText={handleMessageChange}
@@ -360,17 +385,16 @@ export default function ChatScreen() {
             style={[
               styles.sendButton,
               {
-                backgroundColor: isConnected && message.trim() ? theme.tint : theme.tabIconDefault,
-              }
+                backgroundColor:
+                  isConnected && message.trim()
+                    ? theme.tint
+                    : theme.tabIconDefault,
+              },
             ]}
             onPress={handleSendMessage}
             disabled={!isConnected || !message.trim()}
           >
-            <Ionicons
-              name="send"
-              size={20}
-              color="#fff"
-            />
+            <Ionicons name="send" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
       </KeyboardAwareView>
@@ -384,8 +408,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
     marginTop: 16,
@@ -395,16 +419,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E7',
+    borderBottomColor: "#E5E5E7",
   },
   headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   connectionStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   statusDot: {
     width: 8,
@@ -414,7 +438,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   onlineCount: {
     fontSize: 14,
@@ -433,19 +457,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   ownMessage: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   otherMessage: {
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   userName: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 4,
     marginLeft: 12,
   },
   messageBubble: {
-    maxWidth: '80%',
+    maxWidth: "80%",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 20,
@@ -465,15 +489,15 @@ const styles = StyleSheet.create({
   },
   typingText: {
     fontSize: 14,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexDirection: "row",
+    alignItems: "flex-end",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E5E5E7',
+    borderTopColor: "#E5E5E7",
   },
   textInput: {
     flex: 1,
@@ -490,8 +514,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadMoreIndicator: {
     paddingVertical: 20,

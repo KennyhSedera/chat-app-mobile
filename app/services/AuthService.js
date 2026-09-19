@@ -1,10 +1,15 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE_URL = "http://192.168.88.43:3000/api/users";
+const BASE_URL =
+  "http://192.168.8.104:3001/api/users" || "http://192.168.43.8:3001/api/users";
+
+// export const SERVER_URL = "http://192.168.43.8:3001";
+export const SERVER_URL = "http://192.168.8.104:3001";
 
 class AuthService {
   constructor() {
     this.currentUser = null;
+    this.sessionToken = null;
     this.isAuthenticated = false;
     this.authListeners = [];
   }
@@ -12,10 +17,12 @@ class AuthService {
   async initialize() {
     try {
       const userData = await AsyncStorage.getItem("chatUser");
+      const token = await AsyncStorage.getItem("sessionToken");
 
-      if (userData) {
+      if (userData && token) {
         const user = JSON.parse(userData);
         this.currentUser = user;
+        this.sessionToken = token;
         this.isAuthenticated = true;
         this.notifyListeners({ type: "LOGIN", user });
         return user;
@@ -43,8 +50,10 @@ class AuthService {
       }
 
       await AsyncStorage.setItem("chatUser", JSON.stringify(data.user));
+      await AsyncStorage.setItem("sessionToken", data.token);
 
       this.currentUser = data.user;
+      this.sessionToken = data.token;
       this.isAuthenticated = true;
       this.notifyListeners({ type: "LOGIN", user: data.user });
 
@@ -73,8 +82,10 @@ class AuthService {
       }
 
       await AsyncStorage.setItem("chatUser", JSON.stringify(data.user));
+      await AsyncStorage.setItem("sessionToken", data.token); // ← nouveau
 
       this.currentUser = data.user;
+      this.sessionToken = data.token; // ← nouveau
       this.isAuthenticated = true;
       this.notifyListeners({ type: "REGISTER", user: data.user });
 
@@ -85,7 +96,26 @@ class AuthService {
     }
   }
 
-  // Méthode logout corrigée - accepte maintenant un userId directement
+  async performLocalLogout() {
+    try {
+      await AsyncStorage.removeItem("chatUser");
+      await AsyncStorage.removeItem("sessionToken"); // ← nouveau
+      const previousUser = this.currentUser;
+      this.currentUser = null;
+      this.sessionToken = null; // ← nouveau
+      this.isAuthenticated = false;
+      this.notifyListeners({ type: "LOGOUT", previousUser });
+      return { success: true };
+    } catch (error) {
+      console.error("Erreur nettoyage local:", error);
+      throw error;
+    }
+  }
+
+  getSessionToken() {
+    return this.sessionToken;
+  }
+
   async logout(userId) {
     if (!userId) {
       console.warn("UserId manquant pour le logout");
@@ -96,13 +126,11 @@ class AuthService {
       const res = await fetch(`${BASE_URL}/logout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }), // Envoi de userId dans le bon format
+        body: JSON.stringify({ userId }),
       });
 
-      // Vérifier si la réponse est OK
       if (!res.ok) {
         console.error("Erreur HTTP:", res.status);
-        // En cas d'erreur serveur, forcer le nettoyage local
         return await this.forceLogout();
       }
 
@@ -116,35 +144,18 @@ class AuthService {
         };
       }
 
-      // Nettoyage local après succès serveur
       await this.performLocalLogout();
 
       return { success: true, message: "Déconnexion réussie" };
     } catch (error) {
       console.error("Erreur de déconnexion:", error);
 
-      // En cas d'erreur réseau, forcer le nettoyage local
       if (error.name === "TypeError" || error.message.includes("fetch")) {
         console.warn("Erreur réseau - nettoyage local forcé");
         return await this.forceLogout();
       }
 
       return { success: false, error: error.message };
-    }
-  }
-
-  // Méthode pour le nettoyage local
-  async performLocalLogout() {
-    try {
-      await AsyncStorage.removeItem("chatUser");
-      const previousUser = this.currentUser;
-      this.currentUser = null;
-      this.isAuthenticated = false;
-      this.notifyListeners({ type: "LOGOUT", previousUser });
-      return { success: true };
-    } catch (error) {
-      console.error("Erreur nettoyage local:", error);
-      throw error;
     }
   }
 
@@ -189,7 +200,6 @@ class AuthService {
 
   async updateProfile(updates) {
     try {
-      // Optionnel : mettre à jour via backend si nécessaire
       const updatedUser = { ...this.currentUser, ...updates };
       await AsyncStorage.setItem("chatUser", JSON.stringify(updatedUser));
       this.currentUser = updatedUser;
@@ -237,6 +247,25 @@ class AuthService {
     } catch (error) {
       console.error("Erreur nettoyage données:", error);
       return { success: false, error: error.message };
+    }
+  }
+
+  async updateAvatar(userId, avatar) {
+    try {
+      const data = await fetch(`${SERVER_URL}/api/users/avatar/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar }),
+      });
+
+      const updatedUser = { ...this.currentUser, avatar: avatar };
+      await AsyncStorage.setItem("chatUser", JSON.stringify(updatedUser));
+
+      this.currentUser = updatedUser;
+      return data;
+    } catch (error) {
+      console.error("Error updating avatar:", error);
+      throw error;
     }
   }
 }

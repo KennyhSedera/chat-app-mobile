@@ -1,9 +1,9 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
-  useCallback,
 } from "react";
 import AuthService from "../services/AuthService";
 
@@ -50,6 +50,9 @@ export const AuthProvider = ({ children }) => {
 
       if (result.success) {
         setUser(result.user);
+
+        console.log(result.user?.last_seen);
+
         setIsAuthenticated(true);
         return result;
       } else {
@@ -71,11 +74,6 @@ export const AuthProvider = ({ children }) => {
       const result = await AuthService.register(userData);
 
       if (result.success) {
-        console.log("====================================");
-        console.log(result.user);
-        console.log("====================================");
-        // setUser(result.user);
-        // setIsAuthenticated(true);
         return result;
       } else {
         setUser(null);
@@ -112,12 +110,13 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Logout corrigé avec gestion des dépendances et erreurs
   const logout = useCallback(async () => {
     if (!user?._id) {
       console.warn("Aucun utilisateur connecté");
       return { success: false, error: "Aucun utilisateur connecté" };
     }
+
+    console.log(user?.last_seen);
 
     try {
       setIsLoading(true);
@@ -128,8 +127,6 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(false);
         return result;
       } else {
-        // En cas d'échec, gérer l'erreur mais ne pas nettoyer l'état local
-        // sauf si c'est un logout forcé
         if (result.forced) {
           setUser(null);
           setIsAuthenticated(false);
@@ -142,7 +139,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user]); // Ajout de user dans les dépendances
+  }, [user]);
 
   const updateProfile = useCallback(async (updates) => {
     try {
@@ -184,7 +181,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const result = await AuthService.changePassword(
         currentPassword,
-        newPassword
+        newPassword,
       );
       return result;
     } catch (error) {
@@ -248,52 +245,58 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Initialisation et écoute des événements
+  const updateAvatar = async (userId, avatar) => {
+    try {
+      const res = await AuthService.updateAvatar(userId, avatar);
+      const result = await res.json();
+
+      if (result.success) {
+        setUser(result.user);
+        return result;
+      }
+    } catch (error) {
+      console.error("Erreur de mise à jour de l'avatar:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
   useEffect(() => {
-    // Initialiser l'authentification au démarrage
     initializeAuth();
 
-    // Ajouter un listener pour les événements d'authentification
     const removeListener = AuthService.addAuthListener(handleAuthEvent);
 
-    // Nettoyer le listener au démontage
     return () => {
       removeListener();
     };
   }, [initializeAuth, handleAuthEvent]);
 
-  // Vérifier périodiquement l'état d'authentification
   useEffect(() => {
     const checkAuthStatus = () => {
       const currentUser = AuthService.getCurrentUser();
       const isLoggedIn = AuthService.isLoggedIn();
 
-      // Synchroniser l'état local avec le service
       if (currentUser !== user || isLoggedIn !== isAuthenticated) {
         setUser(currentUser);
         setIsAuthenticated(isLoggedIn);
       }
     };
 
-    // Vérifier l'état toutes les 30 secondes
     const interval = setInterval(checkAuthStatus, 30000);
 
     return () => clearInterval(interval);
   }, [user, isAuthenticated]);
 
-  // Valeurs du contexte
   const contextValue = {
-    // État
     user,
     isLoading,
     isAuthenticated,
 
-    // Méthodes
     login,
     register,
     loginAsGuest,
     logout,
 
+    updateAvatar,
     updateProfile,
     deleteAccount,
     changePassword,
